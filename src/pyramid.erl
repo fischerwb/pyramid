@@ -19,7 +19,8 @@
          search/3,
          paths/3,
          insert/4,
-         to_list/1
+         to_list/1,
+         from_list/1
         ]).
 
 -type level() :: {Keys :: #{}, Levels :: #{}}.  %% Levels :: maps:map(key(), pyramid())
@@ -77,6 +78,13 @@ to_list({Keys, Levels}) ->
     KeyList = [{[], K, V} || {K,V} <- maps:to_list(Keys)],
     PathList = [[{[K0|P], K, V} || {P,K,V} <- to_list(V0)]
                 || {K0,V0} <- maps:to_list(Levels)],
-    lists:flatten(PathList, KeyList)
-    .
+    lists:flatten(PathList, KeyList).
+
+-spec from_list([{Path::path(), Key::key(), Value::term()}]) -> pyramid().
+from_list(Paths) ->
+    lists:foldl(fun({P, K, V}, Pyr) ->
+                        insert(P, K, V, Pyr)
+                end,
+                new(),
+                Paths).
 
