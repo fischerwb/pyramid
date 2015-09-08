@@ -64,6 +64,11 @@ prop_path_override() ->
                 {ok, V2} =:= pyramid:search(tl(Path), Key, P1)
             end).
 
+prop_paths() ->
+    ?FORALL({Path, Key, Value, Pyramid},
+            {list(term()), term(), term(), pyramid()},
+            lists:member(Path, pyramid:paths(Path, Key, pyramid:insert(Path, Key, Value, Pyramid)))).
+
 -define(pt(N),
         {timeout, 60, ?_assert(proper:quickcheck(?MODULE:N(), [long_result]))}
        ).
@@ -82,4 +87,7 @@ delete_any_test_() ->
 
 path_override_test_() ->
     ?pt(prop_path_override).
+
+paths_test_() ->
+    ?pt(prop_paths).
 

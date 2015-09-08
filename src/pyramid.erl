@@ -61,9 +61,33 @@ search([P | Path], Key, {Keys,Levels}) ->
 
 %% Discover which levels in Path have overrides for Key
 -spec paths(Path::path(), Key::key(), Pyramid::pyramid()) -> [path()].
-paths(Path, Key, {Keys,Levels}) ->
-    ok.
+paths([], Key, {Keys, _Levels}) ->
+    case maps:find(Key, Keys) of
+        error -> [];
+        {ok, _} -> [[]]
+    end;
+paths([P|Path], Key, {Keys, Levels}) ->
+    R = case maps:find(P, Levels) of
+            error -> [];
+            {ok, L} -> [[P | RP] || RP <- paths(Path, Key, L)]
+        end,
+    paths([], Key, {Keys, Levels}) ++ R.
 
+%% Visit every level in Pyr along Path, calling F(Keys).
+%% Returns value of F from root to tip of path
+path_visitor(Path, F, P) ->
+    lists:reverse(r_path_visitor(Path, F, P, [])).
+
+r_path_visitor([], F, {Keys, _L}, Acc) ->
+    [F(Keys) | Acc];
+r_path_visitor([P | Path], F, {Keys, Levels}, Acc) ->
+    case maps:find(P, Levels) of
+        error -> [];
+        {ok, L} -> r_path_visitor(Path, F, L, [F(Keys) | Acc])
+    end.
+
+%%
+%%
 -spec insert(Path::path(), Key::key(), Value::term(), Pyramid::pyramid()) -> pyramid().
 insert([], Key, Value, {Keys, Levels}) ->
     {maps:put(Key, Value, Keys), Levels};
