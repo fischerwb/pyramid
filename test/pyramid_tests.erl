@@ -11,12 +11,12 @@
 pyramid() ->
     ?SIZED(N, pyramid(N)).
 
-pyramid(0) -> ?LET(P, pyramid:new(), P);
+pyramid(0) -> pyramid:new();
 pyramid(N) ->
-    ?LETSHRINK({Path, Key, Value, Pyr},
-               {list(term()), term(), term(), pyramid(N-1)},
-               pyramid:insert(Path, Key, Value, Pyr)
-              ).
+    ?LAZY(?LETSHRINK({Path, Key, Value, Pyr},
+                     {list(term()), term(), term(), pyramid(N-1)},
+                     pyramid:insert(Path, Key, Value, Pyr)
+                    )).
 
 prop_inserted_can_be_searched() ->
     ?FORALL({Path, Key, Value, Pyramid},
@@ -44,30 +44,35 @@ prop_delete_any() ->
             {list(term()), term(), pyramid()},
             begin
                 DA = fun DA([], K, P) -> pyramid:delete([], K, P);
-                        DA(L, K, P) -> pyramid:delete(L, K, DA(tl(L), K, P))
-                    end,
+                         DA(L, K, P) -> pyramid:delete(L, K, DA(tl(L), K, P))
+                     end,
                 P1 = DA(Path, Key, Pyramid),
                 error =:= pyramid:search(Path, Key, P1)
             end
            ).
 
-path_gt_1() ->
-    ?LET({P, T},
-         {list(term()), term()},
-         [T | P]).
+longpath() ->
+    ?LETSHRINK({P, T1, T2},
+         {list(term()), term(), term()},
+         [T1, T2 | P]).
 
 different_vs() ->
     ?SUCHTHAT({V1, V2},
               {term(), term()},
               V1 =/= V2).
 
-prop_path_override() ->
-    ?FORALL({Path, Key, {V1, V2}, Pyramid},
-            {path_gt_1(), term(), different_vs(), pyramid()},
+prop_path_override_cascade() ->
+    ?FORALL({Path, ExtraTerm, Key, {V1, V2}},
+            {longpath(), term(), term(), different_vs()},
             begin
-                P1 = pyramid:insert(Path, Key, V1, pyramid:insert(tl(Path), Key, V2, Pyramid)),
+                LongPath = Path ++ [ExtraTerm],
+                ShortPath = lists:droplast(Path),
+                ShortestPath = lists:droplast(ShortPath),
+                P1 = pyramid:insert(Path, Key, V1, pyramid:insert(ShortestPath, Key, V2, pyramid:new())),
                 {ok, V1} =:= pyramid:search(Path, Key, P1) andalso
-                {ok, V2} =:= pyramid:search(tl(Path), Key, P1)
+                {ok, V1} =:= pyramid:search(LongPath, Key, P1) andalso
+                {ok, V2} =:= pyramid:search(ShortPath, Key, P1) andalso
+                {ok, V2} =:= pyramid:search(ShortestPath, Key, P1)
             end).
 
 prop_paths() ->
@@ -91,8 +96,8 @@ search_all_test_() ->
 delete_any_test_() ->
     ?pt(prop_delete_any).
 
-path_override_test_() ->
-    ?pt(prop_path_override).
+path_override_cascade_test_() ->
+    ?pt(prop_path_override_cascade).
 
 paths_test_() ->
     ?pt(prop_paths).
