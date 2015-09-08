@@ -42,7 +42,13 @@ prop_search_all() ->
 prop_delete_any() ->
     ?FORALL({Path, Key, Pyramid},
             {list(term()), term(), pyramid()},
-            error =:= pyramid:search(Path, Key, pyramid:delete(Path, Key, Pyramid))
+            begin
+                DA = fun DA([], K, P) -> pyramid:delete([], K, P);
+                        DA(L, K, P) -> pyramid:delete(L, K, DA(tl(L), K, P))
+                    end,
+                P1 = DA(Path, Key, Pyramid),
+                error =:= pyramid:search(Path, Key, P1)
+            end
            ).
 
 path_gt_1() ->
