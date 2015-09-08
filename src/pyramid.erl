@@ -19,6 +19,7 @@
          search/3,
          paths/3,
          insert/4,
+         delete/3,
          to_list/1,
          from_list/1
         ]).
@@ -52,7 +53,7 @@ search([P | Path], Key, {Keys,Levels}) ->
             maps:find(Key, Keys);
         {ok, L} ->
             case search(Path, Key, L) of
-                error -> 
+                error ->
                     maps:find(Key, Keys);
                 V -> V
             end
@@ -72,6 +73,16 @@ insert([P | Path], Key, Value, {Keys, Levels}) ->
                 {ok, L} -> L
             end,
     {Keys, maps:put(P, insert(Path, Key, Value, Level), Levels)}.
+
+-spec delete(Path::path(), Key::key(), Pyramid::pyramid()) -> pyramid().
+
+delete([], Key, {Keys, Levels}) ->
+    {maps:remove(Key, Keys), Levels};
+delete([P | Path], Key, {Keys, Levels}) ->
+    case maps:find(P, Levels) of
+        error -> {Keys, Levels};
+        {ok, L} -> {Keys, maps:update(P, delete(Path, Key, L), Levels)}
+    end.
 
 -spec to_list(pyramid()) -> [{path(), key(), term()}].
 to_list({Keys, Levels}) ->
